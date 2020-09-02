@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<style>
+canvas {
+    border:3px solid #000000;
+    background-color: #d3ccfc;
+}
+</style>
+</head>
+<body onload="startGame()">
+
+<script>
+function startGame(){
+
+var canvas=document.createElement("Canvas");
+canvas.height=600;
+canvas.width=900;
+var ctx=canvas.getContext("2d");
+document.body.appendChild(canvas);
+var reset=1;
+var player;
+var LEFT=false;
+var RIGHT=false;
+var UP=false;
+var DOWN=false;
+var BOOST=false;
+var GUN=false;
+var d=new Date();
+var now=d.getTime(); 
+var lastBullet=d.getTime();
+var bulletCount=0;
+var spawnEnemy = true;
+
+var bullets = new Array (50);
+for (var i=0;i<bullets.length;i++){
+    bullets[i] = new bullet(0, 0, false);
+}
+
+var enemies = new Array (20);
+for (var i=0;i<enemies.length;i++){
+    enemies[i] = new enemy(20, 20, 300, 300, false, "green");
+}
+    
+document.onkeydown = function(e) {
+    if(e.keyCode == 37) LEFT = true;
+    if(e.keyCode == 39) RIGHT = true;
+    if(e.keyCode == 38) UP = true;
+    if(e.keyCode == 40) DOWN = true;
+    if(e.keyCode == 18) BOOST = true;
+    if(e.keyCode == 70) GUN = true;
+    }
+
+document.onkeyup = function(e) {
+    if(e.keyCode == 37) LEFT = false;
+    if(e.keyCode == 39) RIGHT = false;
+    if(e.keyCode == 38) UP = false;
+    if(e.keyCode == 40) DOWN = false;
+    if(e.keyCode == 18) BOOST = false;
+    if(e.keyCode == 70) GUN = false;
+}
+
+
+setInterval(mainGameLoop, 5);
+
+function mainGameLoop(){
+    
+    if(reset==1){
+        player = new Vehicle(20,30, 100, 70, 1, "red");
+        //reset key variables code here
+        reset=0;
+    }
+    
+    if (spawnEnemy == true){
+            for (var i=0;i<enemies.length;i++) {
+               if(enemies[i].alive == false){
+                        enemies[i].alive = true;
+                        spawnEnemy = false;
+                        break;
+
+                }
+            }
+            //ctx.fillText("spawnEnemy var working" , 50,50);
+    }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    player.calc();
+    player.move();
+    player.draw();
+
+
+    //collision detection code here
+    for(var i=0;i<enemies.length;i++){
+        //add alive condition here
+        enemies[i].calc();
+        enemies[i].move();
+        enemies[i].draw();
+        
+        for(var n=0;n<bullets.length;n++){
+            if( enemies[i].alive == true && bullets[n].alive == true &&
+                bullets[n].x+1.2 > enemies[i].x &&
+                bullets[n].x-1.2 < enemies[i].x+enemies[i].width &&
+                bullets[n].y+1.2 > enemies[i].y &&
+                bullets[n].y-1.2 < enemies[i].y+enemies[i].height){
+                    bullets[n].alive=false;
+                    enemies[i].shield-=5;
+
+            }
+
+        } 
+    }
+
+
+
+    for(var i=0;i<bullets.length;i++){
+        bullets[i].bounds();
+        bullets[i].move();
+        bullets[i].draw();
+
+    }
+
+    for(var i=0;i<enemies.length;i++){
+        if(enemies[i].shield < 1){
+            enemies[i].alive = false;
+        }
+
+        if(enemies[i].alive == true){
+            enemies[i].draw();
+            ctx.fillStyle = "#000000";
+            //ctx.fillText(enemies[i].shield, 200, i*10+20);
+        }
+    }
+
+}
+
+function Vehicle (width, height, x, y, alive, color){
+this.width=width;
+this.height=height;
+this.x=x;
+this.y=y;
+this.alive=alive;
+this.color=color;
+this.angle=0;
+this.rotation=0;
+this.speed=0;
+this.nextX=0;
+this.nextY=0;
+this.shield = 100;
+this.boost = 100;
+
+
+this.move=function(){
+this.angle += this.rotation * Math.PI / 180;
+this.angle = Math.round( ( this.angle + Number.EPSILON ) * 100 ) / 100
+if(this.angle > 6.28 || this.angle < -6.28){this.angle=0;}
+
+this.nextX = this.x + this.speed * Math.sin(this.angle);
+this.nextY = this.y - this.speed * Math.cos(this.angle);
+    
+    if(this.nextY > this.y && this.nextY +this.speed+(this.height/2) < canvas.height){
+        this.y=this.nextY;
+    }
+    if(this.nextY < this.y && this.nextY -this.speed-(this.height/2) > 0){
+        this.y=this.nextY;
+    }    
+     if(this.nextX > this.x && this.nextX +this.speed+(this.height/2) < canvas.width){
+        this.x=this.nextX;
+    }
+    if(this.nextX < this.x && this.nextX -this.speed-(this.height/2) > 0){
+        this.x=this.nextX;
+    }
+}
+
+this.calc=function(){
+
+    if(LEFT) { 
+        this.rotation = -1;
+    }else if(RIGHT) {
+        this.rotation = 1;   
+    }else {this.rotation = 0;}
+    
+    if(UP && !BOOST) { 
+        this.speed = 1;
+    }else if(DOWN) {
+        this.speed = -1;   
+    }else if(UP && BOOST) {
+        this.speed = 4;   
+    }else {this.speed = 0;}
+
+    if(GUN){
+        d=new Date();
+        now=d.getTime();
+        if (now-lastBullet > 80){
+              
+            for (var i=0;i<bullets.length;i++){
+                if(bullets[i].alive == false){
+                    
+                    bullets[i].fire();
+                    d=new Date();
+                    lastBullet=d.getTime();
+                    break;
+                }
+
+            }
+        }
+        
+    }    
+}
+this.draw=function(){
+   
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+        ctx.fillStyle = color;
+        ctx.fillRect(this.width / -2, this.height / -2, this.width, this.height);
+        ctx.restore();  
+        ctx.fillText("Angle " + this.angle, 5,15);
+               
+       
+   }
+
+
+}
+
+function bullet(x, y, alive){
+this.x=x;
+this.y=y;
+this.radius = 2.4
+this.alive=alive;
+this.speed=0;
+
+this.move = function(){
+this.x += this.speed * Math.sin(this.angle);
+this.y -= this.speed * Math.cos(this.angle);
+}
+
+this.draw = function(){
+    if (this.alive == true){
+        ctx.fillStyle = "#000000";
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, 2 * Math.PI);
+        ctx.fill(); 
+          
+    }
+
+}
+
+this.fire = function(){
+    this.alive=true;
+    this.x=player.x;
+    this.y=player.y;
+    this.angle=player.angle;
+    this.speed=5;
+    this.height = 2;
+    this.width = 5;
+}
+
+this.bounds = function(){
+    if(this.x<0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height){
+            this.alive = false;
+
+       }
+
+    }
+
+}
+
+function enemy (width, height, x, y, alive, color){
+this.width=width;
+this.height=height;
+this.x=x;
+this.y=y;
+this.alive=alive;
+this.color=color;
+this.angle=0;
+this.targetAngle=0;
+this.rotation=0;
+this.speed=0;
+this.oldX=0;
+this.oldY=0;
+this.nextX=0;
+this.nextY=0;
+this.shield = 100;
+this.moving = true;
+
+this.move=function(){
+this.angle += this.rotation * Math.PI / 180;
+this.angle = Math.round( ( this.angle + Number.EPSILON ) * 100 ) / 100;
+if(this.angle > 6.28 || this.angle < -6.28){this.angle=0;}
+this.nextX = this.x + this.speed * Math.sin(this.angle);
+this.nextY = this.y - this.speed * Math.cos(this.angle);
+
+
+    
+    if( this.nextY > this.y && this.nextY +this.speed+(this.height/2) < canvas.height || 
+        this.nextY < this.y && this.nextY -this.speed-(this.height/2) > 0){
+        this.oldY = this.y;
+        this.y=this.nextY;
+    }
+       
+     if(this.nextX > this.x && this.nextX +this.speed+(this.height/2) < canvas.width ||
+        this.nextX < this.x && this.nextX -this.speed-(this.height/2) > 0){
+        this.oldX = this.x;
+        this.x=this.nextX;
+    }
+}
+
+this.calc=function(){
+    
+    
+        this.targetAngle = Math.atan2(this.y - player.y, this.x - player.x);
+        this.targetAngle = Math.round( ( this.targetAngle + Number.EPSILON ) * 100 ) / 100;
+        if(this.angle != this.targetAngle){
+            this.rotation=1;
+
+        }else{this.rotation=0;}
+    
+}
+
+this.draw=function(){
+   
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+        ctx.fillStyle = color;
+        ctx.fillRect(this.width / -2, this.height / -2, this.width, this.height);
+        ctx.restore(); 
+        ctx.fillText("angle " + this.angle, 200,15);
+        ctx.fillText("target angle " + this.targetAngle, 200,25);
+}
+this.logic = function(){
+
+
+
+}
+
+}
+
+
+}
+</script>
+
+
+</body>
+</html>
